@@ -152,9 +152,10 @@ namespace hpx
                         archive_flags |= serialization::enable_compression;
 
                     // Get the chunk size from the allocator if it supports it
-                    size_t chunk_default = hpx::traits::default_chunk_size<
-                            typename Buffer::allocator_type
-                        >::call(buffer.data_.get_allocator());
+//                    size_t chunk_default = hpx::traits::default_chunk_size<
+//                            typename Buffer::allocator_type
+//                        >::call(buffer.data_.get_allocator());
+                    size_t chunk_default = 0;
 
                     // preallocate data
                     for (/**/; parcels_sent != parcels_size; ++parcels_sent)
