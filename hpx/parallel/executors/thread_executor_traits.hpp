@@ -191,6 +191,17 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v3)
 
             return hpx::util::unwrapped(results);
         }
+
+        /// Retrieve whether this executor has operations pending or not.
+        /// All threads::executors invoke sched.num_pending_closures().
+        ///
+        /// \param sched  [in] The executor object to use for querying the
+        ///               number of pending tasks.
+        ///
+        static bool has_pending_closures(executor_type& sched)
+        {
+            return sched.num_pending_closures();
+        }
     };
 }}}
 

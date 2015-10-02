@@ -212,7 +212,11 @@ else()
 endif()
 
 target_link_libraries(hpx
-  ${HPX_LIBRARIES})
+  PUBLIC ${HPX_LIBRARIES})
+if(HPX_ADDITIONAL_RUNTIME_DEPENDENCIES)
+  target_link_libraries(hpx
+    PRIVATE ${HPX_ADDITIONAL_RUNTIME_DEPENDENCIES})
+endif()
 
 foreach(_plugin ${HPX_STATIC_PARCELPORT_PLUGINS})
   if (_parcelport_${_plugin}_LIBRARIES)

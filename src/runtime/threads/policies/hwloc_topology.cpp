@@ -411,7 +411,7 @@ namespace hpx { namespace threads
     } // }}}
 
     ///////////////////////////////////////////////////////////////////////////
-    mask_cref_type hwloc_topology::get_thread_affinity_mask_from_lva(
+    mask_type hwloc_topology::get_thread_affinity_mask_from_lva(
         naming::address::address_type lva
       , error_code& ec
         ) const

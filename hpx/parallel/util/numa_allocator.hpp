@@ -30,6 +30,7 @@ namespace hpx { namespace parallel { namespace util
     template <typename T, typename Executors>
     class numa_allocator
     {
+        typedef typename Executors::value_type executor_type;
     public:
         // typedefs
         typedef T value_type;
@@ -53,12 +54,12 @@ namespace hpx { namespace parallel { namespace util
           : executors_(executors), topo_(topo)
         {}
 
-        explicit numa_allocator(numa_allocator const& rhs)
+        numa_allocator(numa_allocator const& rhs)
           : executors_(rhs.executors_), topo_(rhs.topo_)
         {}
 
         template <typename U>
-        explicit numa_allocator(numa_allocator<U, Executors> const& rhs)
+        numa_allocator(numa_allocator<U, Executors> const& rhs)
           : executors_(rhs.executors_), topo_(rhs.topo_)
         {}
 
@@ -95,11 +96,10 @@ namespace hpx { namespace parallel { namespace util
 
 #if defined(HPX_DEBUG)
                             // make sure memory was placed appropriately
-                            hpx::threads::mask_cref_type mem_mask =
+                            hpx::threads::mask_type mem_mask =
                                 topo_.get_thread_affinity_mask_from_lva(
                                     reinterpret_cast<hpx::naming::address_type>(&val));
 
-                            typedef typename Executors::value_type executor_type;
                             typedef hpx::parallel::executor_information_traits<
                                 executor_type> traits;
 

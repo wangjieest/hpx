@@ -10,7 +10,7 @@
 #if !defined(HPX_E43E0AF0_8A9D_4870_8CC7_E5AD53EF4798)
 #define HPX_E43E0AF0_8A9D_4870_8CC7_E5AD53EF4798
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
 #include <hpx/runtime/naming/address.hpp>
 
 #include <boost/thread.hpp>
@@ -285,7 +285,7 @@ namespace hpx { namespace threads
         /// \param ec         [in,out] this represents the error status on exit,
         ///                   if this is pre-initialized to \a hpx#throws
         ///                   the function will throw on error instead.
-        virtual mask_cref_type get_thread_affinity_mask_from_lva(
+        virtual mask_type get_thread_affinity_mask_from_lva(
             naming::address::address_type, error_code& ec = throws) const = 0;
 
         /// \brief Prints the \param m to os in a human readable form

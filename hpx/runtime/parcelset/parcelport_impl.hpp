@@ -239,7 +239,7 @@ namespace hpx { namespace parcelset
             enqueue_parcel(
                 dest, std::move(p), std::move(f), std::move(future_await->new_gids_));
 
-            if (trigger && enable_parcel_handling_)
+            if (trigger)
             {
                 get_connection_and_send_parcels(dest);
             }
@@ -276,10 +276,7 @@ namespace hpx { namespace parcelset
                     false);
             }
 
-            if (enable_parcel_handling_)
-            {
-                get_connection_and_send_parcels(locality_id);
-            }
+            get_connection_and_send_parcels(locality_id);
         }
 
         void send_early_parcel(locality const & dest, parcel p)
@@ -296,10 +293,8 @@ namespace hpx { namespace parcelset
 
         bool do_background_work(std::size_t num_thread)
         {
-            bool did_some_work = false;
-            did_some_work = do_background_work_impl<ConnectionHandler>(num_thread);
             trigger_pending_work();
-            return did_some_work;
+            return do_background_work_impl<ConnectionHandler>(num_thread);
         }
 
         /// support enable_shared_from_this
@@ -352,16 +347,6 @@ namespace hpx { namespace parcelset
             threads::set_thread_state(id,
                 boost::chrono::milliseconds(100), threads::pending,
                 threads::wait_signaled, threads::thread_priority_boost, ec);
-        }
-
-        /// Temporarily enable/disable all parcel handling activities in the
-        /// parcelport
-        void enable(bool new_state)
-        {
-            enable_parcel_handling_ = new_state;
-            do_enable_parcel_handling_impl<ConnectionHandler>(new_state);
-            if (new_state)
-                trigger_pending_work();
         }
 
         /// Return the name of this locality
@@ -486,28 +471,6 @@ namespace hpx { namespace parcelset
         do_background_work_impl(std::size_t)
         {
             return false;
-        }
-
-        ///////////////////////////////////////////////////////////////////////
-        template <typename ConnectionHandler_>
-        typename boost::enable_if<
-            typename connection_handler_traits<
-                ConnectionHandler_
-            >::do_enable_parcel_handling
-        >::type
-        do_enable_parcel_handling_impl(bool new_state)
-        {
-            connection_handler().enable_parcel_handling(new_state);
-        }
-
-        template <typename ConnectionHandler_>
-        typename boost::disable_if<
-            typename connection_handler_traits<
-                ConnectionHandler_
-            >::do_enable_parcel_handling
-        >::type
-        do_enable_parcel_handling_impl(bool new_state)
-        {
         }
 
         ///////////////////////////////////////////////////////////////////////
@@ -671,9 +634,6 @@ namespace hpx { namespace parcelset
         {
             typedef pending_parcels_map::iterator iterator;
 
-            if (!enable_parcel_handling_)
-                return false;
-
             {
                 boost::lock_guard<lcos::local::spinlock> l(mtx_);
 
@@ -748,7 +708,7 @@ namespace hpx { namespace parcelset
             locality const& locality_id, bool background = false)
         {
             // repeat until no more parcels are to be sent
-            while (!hpx::is_stopped())
+//             while (!hpx::is_stopped())
             {
                 std::vector<parcel> parcels;
                 std::vector<write_handler_type> handlers;
@@ -756,7 +716,7 @@ namespace hpx { namespace parcelset
 
                 if(!dequeue_parcels(locality_id, parcels, handlers, new_gids))
                 {
-                    break;
+                    return;
                 }
 
                 // If one of the sending threads are in suspended state, we
@@ -781,7 +741,7 @@ namespace hpx { namespace parcelset
                 }
 
                 // send parcels if they didn't get sent by another connection
-                if (!hpx::is_starting() && threads::get_self_ptr() == 0)
+                if (!hpx::is_starting())
                 {
                     // Re-schedule if this is not executed by an HPX thread
                     hpx::applier::register_thread_nullary(
@@ -811,8 +771,8 @@ namespace hpx { namespace parcelset
                 // We yield here for a short amount of time to give another
                 // HPX thread the chance to put a subsequent parcel which
                 // leads to a more effective parcel buffering
-                if (hpx::threads::get_self_ptr())
-                    hpx::this_thread::yield();
+//                 if (hpx::threads::get_self_ptr())
+//                     hpx::this_thread::yield();
             }
         }
 
@@ -928,8 +888,10 @@ namespace hpx { namespace parcelset
 
             std::size_t num_thread(0);
             if(threads::get_self_ptr())
+            {
                 num_thread = hpx::get_worker_thread_num();
-            do_background_work_impl<ConnectionHandler>(num_thread);
+                do_background_work(num_thread);
+            }
         }
 
     public:

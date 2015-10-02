@@ -6,7 +6,7 @@
 
 #include <hpx/config.hpp>
 #include <hpx/version.hpp>
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config/defaults.hpp>
 #include <hpx/util/runtime_configuration.hpp>
 #include <hpx/util/init_ini_data.hpp>
 #include <hpx/util/itt_notify.hpp>
@@ -933,9 +933,6 @@ namespace hpx { namespace util
 
         case threads::thread_stacksize_huge:
             return huge_stacksize;
-
-        case threads::thread_stacksize_nostack:
-            return 0;       // stackless thread
 
         default:
         case threads::thread_stacksize_small:

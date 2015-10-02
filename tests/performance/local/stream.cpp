@@ -13,6 +13,7 @@
 
 #include <hpx/hpx_init.hpp>
 #include <hpx/hpx.hpp>
+#include <hpx/version.hpp>
 #include <hpx/include/parallel_algorithm.hpp>
 #include <hpx/include/parallel_executors.hpp>
 #include <hpx/include/parallel_transform.hpp>
@@ -499,7 +500,7 @@ int hpx_main(boost::program_options::variables_map& vm)
         timings_all = hpx::util::unwrapped(workers);
     time_total = mysecond() - time_total;
 
-    /*	--- SUMMARY --- */
+    /* --- SUMMARY --- */
     const char *label[4] = {
         "Copy:      ",
         "Scale:     ",
