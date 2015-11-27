@@ -11,7 +11,6 @@
 #include <hpx/runtime/agas/request.hpp>
 #include <hpx/runtime/actions/action_support.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/serialize_sequence.hpp>
 #include <hpx/lcos/base_lco_with_value.hpp>
 
 #include <boost/variant.hpp>
@@ -383,6 +382,9 @@ namespace hpx { namespace agas
         HPX_ASSERT(type_ == symbol_ns_on_event);
     }
 
+    request::~request()
+    {}
+
     ///////////////////////////////////////////////////////////////////////////
     // copy constructor
     request::request(
@@ -672,7 +674,7 @@ namespace hpx { namespace agas
         void operator()(Sequence const& seq) const
         {
             // TODO: verification?
-            serialization::serialize_sequence(ar, seq);
+            ar << seq;
         }
     };
 
@@ -692,7 +694,7 @@ namespace hpx { namespace agas
             boost::mpl::at_c<                                                 \
                 request_data::data_type::types, n                             \
             >::type d;                                                        \
-            serialization::serialize_sequence(ar, d);                         \
+            ar >> d;                                                          \
             data->data = d;                                                   \
             return;                                                           \
         }                                                                     \

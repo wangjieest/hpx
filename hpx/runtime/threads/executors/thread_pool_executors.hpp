@@ -32,7 +32,8 @@ namespace hpx { namespace threads { namespace executors
         {
         public:
             thread_pool_executor(std::size_t max_punits = 1,
-                std::size_t min_punits = 1);
+                std::size_t min_punits = 1,
+                char const* description = "thread_pool_executor");
             ~thread_pool_executor();
 
             // Schedule the specified function for execution in this executor.
@@ -155,7 +156,7 @@ namespace hpx { namespace threads { namespace executors
     };
 #endif
 
-#if defined(HPX_HAVE_THROTTLE_SCHEDULER)
+#if defined(HPX_HAVE_THROTTLE_SCHEDULER) && defined(HPX_HAVE_APEX)
     struct HPX_EXPORT throttle_queue_executor : public scheduled_executor
     {
         throttle_queue_executor();

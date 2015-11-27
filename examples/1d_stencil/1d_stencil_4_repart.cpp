@@ -28,7 +28,6 @@
 #include <limits>
 #include <algorithm>
 
-#include <apex.hpp>
 #include <apex_api.hpp>
 
 #include "print_time_results.hpp"
@@ -41,7 +40,7 @@ using hpx::performance_counters::status_is_valid;
 
 static bool counters_initialized = false;
 static const char * counter_name = "/threads{locality#%d/total}/idle-rate";
-static apex_event_type end_iteration_event = APEX_CUSTOM_EVENT;
+static apex_event_type end_iteration_event = APEX_CUSTOM_EVENT_1;
 static hpx::naming::id_type counter_id;
 
 

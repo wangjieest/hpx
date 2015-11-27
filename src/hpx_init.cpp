@@ -18,6 +18,7 @@
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/runtime/threads/policies/schedulers.hpp>
 #include <hpx/runtime/applier/applier.hpp>
+#include <hpx/runtime/get_config_entry.hpp>
 #include <hpx/runtime_impl.hpp>
 #include <hpx/util/find_prefix.hpp>
 #include <hpx/util/query_counters.hpp>
@@ -49,6 +50,13 @@
 namespace hpx
 {
     void set_error_handlers();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+namespace hpx_startup
+{
+    std::vector<std::string> (*user_main_config_function)(
+        std::vector<std::string> const&) = 0;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -266,7 +274,7 @@ namespace hpx { namespace detail
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    void print_counters(boost::shared_ptr<util::query_counters> const& qc)
+    void start_counters(boost::shared_ptr<util::query_counters> const& qc)
     {
         try {
             HPX_ASSERT(qc);
@@ -396,12 +404,16 @@ namespace hpx
                         boost::ref(counters), interval, destination, counter_format,
                         counter_shortnames, csv_header);
 
-                // schedule to run at shutdown
-                rt.add_pre_shutdown_function(
-                    boost::bind(&util::query_counters::evaluate, qc));
+                // schedule to print counters at shutdown, if requested
+                if (get_config_entry("hpx.print_counter.shutdown", "0") == "1")
+                {
+                    // schedule to run at shutdown
+                    rt.add_pre_shutdown_function(
+                        boost::bind(&util::query_counters::evaluate, qc));
+                }
 
                 // schedule to start all counters
-                rt.add_startup_function(boost::bind(&print_counters, qc));
+                rt.add_startup_function(boost::bind(&start_counters, qc));
 
                 // register the query_counters object with the runtime system
                 rt.register_query_counters(qc);
@@ -419,6 +431,16 @@ namespace hpx
             else if (vm.count("hpx:print-counter-format")) {
                 throw detail::command_line_error("Invalid command line option "
                     "--hpx:print-counter-format, valid in conjunction with "
+                    "--hpx:print-counter only");
+            }
+            else if (vm.count("hpx:print-counter-at")) {
+                throw detail::command_line_error("Invalid command line option "
+                    "--hpx:print-counter-at, valid in conjunction with "
+                    "--hpx:print-counter only");
+            }
+            else if (vm.count("hpx:reset-counters")) {
+                throw detail::command_line_error("Invalid command line option "
+                    "--hpx:reset-counters, valid in conjunction with "
                     "--hpx:print-counter only");
             }
         }
@@ -710,7 +732,8 @@ namespace hpx
             typedef hpx::threads::policies::local_queue_scheduler<>
                 local_queue_policy;
             local_queue_policy::init_parameter_type init(
-                cfg.num_threads_, 1000, numa_sensitive);
+                cfg.num_threads_, 1000, numa_sensitive,
+                "core-local_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
                 pu_offset, pu_step, affinity_domain, affinity_desc);
 
@@ -725,7 +748,7 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=local "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=local'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=local'.");
 #endif
         }
 
@@ -735,79 +758,23 @@ namespace hpx
             shutdown_function_type const& shutdown,
             util::command_line_handling& cfg, bool blocking)
         {
-#if defined(HPX_HAVE_THROTTLE_SCHEDULER)
+#if defined(HPX_HAVE_THROTTLE_SCHEDULER) && defined(HPX_HAVE_APEX)
             ensure_high_priority_compatibility(cfg.vm_);
             ensure_hierarchy_arity_compatibility(cfg.vm_);
 
-            bool numa_sensitive = false;
-            if (cfg.vm_.count("hpx:numa-sensitive"))
-                numa_sensitive = true;
-
-            std::size_t pu_offset = std::size_t(-1);
-            std::size_t pu_step = 1;
-            std::string affinity_domain("pu");
+            std::size_t pu_offset = get_pu_offset(cfg);
+            std::size_t pu_step = get_pu_step(cfg);
+            std::string affinity_domain = get_affinity_domain(cfg);
             std::string affinity_desc;
-
-#if defined(HPX_HAVE_HWLOC) || defined(BOOST_WINDOWS)
-            if (cfg.vm_.count("hpx:pu-offset")) {
-                pu_offset = cfg.vm_["hpx:pu-offset"].as<std::size_t>();
-                if (pu_offset >= hpx::threads::hardware_concurrency()) {
-                    throw std::logic_error("Invalid command line option "
-                        "--hpx:pu-offset, value must be smaller than number of "
-                        "available processing units.");
-                }
-            }
-
-            if (cfg.vm_.count("hpx:pu-step")) {
-                pu_step = cfg.vm_["hpx:pu-step"].as<std::size_t>();
-                if (pu_step == 0 || pu_step >= hpx::threads::hardware_concurrency()) {
-                    throw std::logic_error("Invalid command line option "
-                        "--hpx:pu-step, value must be non-zero smaller than number of "
-                        "available processing units.");
-                }
-            }
-#endif
-#if defined(HPX_HAVE_HWLOC)
-            if (cfg.vm_.count("hpx:affinity")) {
-                affinity_domain = cfg.vm_["hpx:affinity"].as<std::string>();
-                if (0 != std::string("pu").find(affinity_domain) &&
-                    0 != std::string("core").find(affinity_domain) &&
-                    0 != std::string("numa").find(affinity_domain) &&
-                    0 != std::string("machine").find(affinity_domain))
-                {
-                    throw std::logic_error("Invalid command line option "
-                        "--hpx:affinity, value must be one of: pu, core, numa, "
-                        "or machine.");
-                }
-            }
-            if (cfg.vm_.count("hpx:bind")) {
-                if (cfg.vm_.count("hpx:pu-offset") ||
-                    cfg.vm_.count("hpx:pu-step") ||
-                    cfg.vm_.count("hpx:affinity"))
-                {
-                    throw std::logic_error("Command line option --hpx:bind "
-                        "should not be used with --hpx:pu-step, --hpx:pu-offset, "
-                        "or --hpx:affinity.");
-                }
-
-                std::vector<std::string> bind_affinity =
-                    cfg.vm_["hpx:bind"].as<std::vector<std::string> >();
-                for(std::string const& s: bind_affinity)
-                {
-                    if (!affinity_desc.empty())
-                        affinity_desc += ";";
-                    affinity_desc += s;
-                }
-
-                numa_sensitive = true;
-            }
-#endif
+            std::size_t numa_sensitive =
+                get_affinity_description(cfg, affinity_desc);
 
             // scheduling policy
             typedef hpx::threads::policies::throttle_queue_scheduler<>
                 throttle_queue_policy;
             throttle_queue_policy::init_parameter_type init(
-                cfg.num_threads_, 1000, numa_sensitive);
+                cfg.num_threads_, 1000, numa_sensitive,
+                "core-throttle_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
                 pu_offset, pu_step, affinity_domain, affinity_desc);
 
@@ -817,21 +784,12 @@ namespace hpx
                 new runtime_type(cfg.rtcfg_, cfg.mode_, cfg.num_threads_, init,
                     affinity_init));
 
-            if (blocking) {
-                return run(*rt, cfg.hpx_main_f_, cfg.vm_, cfg.mode_, startup,
-                    shutdown);
-            }
-
-            // non-blocking version
-            start(*rt, cfg.hpx_main_f_, cfg.vm_, cfg.mode_, startup, shutdown);
-
-            rt.release();          // pointer to runtime is stored in TLS
-            return 0;
+            return run_or_start(blocking, std::move(rt), cfg, startup, shutdown);
 #else
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=throttle "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=throttle'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=throttle -DHPX_WITH_APEX'.");
 #endif
         }
 
@@ -852,13 +810,16 @@ namespace hpx
             std::size_t pu_step = get_pu_step(cfg);
             std::string affinity_domain = get_affinity_domain(cfg);
             std::string affinity_desc;
-            get_affinity_description(cfg, affinity_desc);
+            std::size_t numa_sensitive =
+                get_affinity_description(cfg, affinity_desc);
 
             // scheduling policy
             typedef hpx::threads::policies::static_priority_queue_scheduler<>
                 local_queue_policy;
             local_queue_policy::init_parameter_type init(
-                cfg.num_threads_, num_high_priority_queues, 1000);
+                cfg.num_threads_, num_high_priority_queues,
+                1000, numa_sensitive,
+                "core-static_priority_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
                 pu_offset, pu_step, affinity_domain, affinity_desc);
 
@@ -873,14 +834,14 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=static-priority "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=static-priority'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=static-priority'.");
 #endif
         }
 
         ///////////////////////////////////////////////////////////////////////
-        // local static scheduler with priority queue (one queue for each OS
-        // threads plus one separate queue for high priority HPX-threads). Doesn't
-        // steal.
+        // local static scheduler without priority queue (one queue for each OS
+        // threads plus one separate queue for high priority HPX-threads).
+        // Doesn't steal.
         int run_static(startup_function_type const& startup,
             shutdown_function_type const& shutdown,
             util::command_line_handling& cfg, bool blocking)
@@ -893,13 +854,15 @@ namespace hpx
             std::size_t pu_step = get_pu_step(cfg);
             std::string affinity_domain = get_affinity_domain(cfg);
             std::string affinity_desc;
-            get_affinity_description(cfg, affinity_desc);
+            std::size_t numa_sensitive =
+                get_affinity_description(cfg, affinity_desc);
 
             // scheduling policy
             typedef hpx::threads::policies::static_queue_scheduler<>
                 local_queue_policy;
             local_queue_policy::init_parameter_type init(
-                cfg.num_threads_, 1000);
+                cfg.num_threads_, 1000, numa_sensitive,
+                "core-static_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
                 pu_offset, pu_step, affinity_domain, affinity_desc);
 
@@ -914,7 +877,7 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=static "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=static'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=static'.");
 #endif
         }
 
@@ -941,7 +904,7 @@ namespace hpx
                 local_queue_policy;
             local_queue_policy::init_parameter_type init(
                 cfg.num_threads_, num_high_priority_queues, 1000,
-                numa_sensitive);
+                numa_sensitive, "core-local_priority_queue_scheduler");
             threads::policies::init_affinity_data affinity_init(
                 pu_offset, pu_step, affinity_domain, affinity_desc);
 
@@ -973,7 +936,7 @@ namespace hpx
                 abp_priority_queue_policy;
             abp_priority_queue_policy::init_parameter_type init(
                 cfg.num_threads_, num_high_priority_queues, 1000,
-                cfg.numa_sensitive_);
+                cfg.numa_sensitive_, "core-abp_fifo_priority_queue_scheduler");
 
             // Build and configure this runtime instance.
             typedef hpx::runtime_impl<abp_priority_queue_policy> runtime_type;
@@ -985,7 +948,7 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=abp-priority "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=abp-priority'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=abp-priority'.");
 #endif
         }
 
@@ -1007,7 +970,8 @@ namespace hpx
             if (cfg.vm_.count("hpx:hierarchy-arity"))
                 arity = cfg.vm_["hpx:hierarchy-arity"].as<std::size_t>();
 
-            queue_policy::init_parameter_type init(cfg.num_threads_, arity, 1000);
+            queue_policy::init_parameter_type init(cfg.num_threads_, arity,
+                1000, 0, "core-hierarchy_scheduler");
 
             // Build and configure this runtime instance.
             typedef hpx::runtime_impl<queue_policy> runtime_type;
@@ -1019,7 +983,7 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=hierarchy "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=hierarchy'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=hierarchy'.");
 #endif
         }
 
@@ -1041,7 +1005,8 @@ namespace hpx
             typedef hpx::threads::policies::periodic_priority_queue_scheduler<>
                 local_queue_policy;
             local_queue_policy::init_parameter_type init(cfg.num_threads_,
-                num_high_priority_queues, 1000, cfg.numa_sensitive_);
+                num_high_priority_queues, 1000, cfg.numa_sensitive_,
+                "core-periodic_priority_queue_scheduler");
 
             // Build and configure this runtime instance.
             typedef hpx::runtime_impl<local_queue_policy> runtime_type;
@@ -1053,16 +1018,17 @@ namespace hpx
             throw detail::command_line_error("Command line option "
                 "--hpx:queuing=periodic-priority "
                 "is not configured in this build. Please rebuild with "
-                "'cmake -DHPX_THREAD_SCHEDULERS=periodic-priority'.");
+                "'cmake -DHPX_WITH_THREAD_SCHEDULERS=periodic-priority'.");
 #endif
         }
 
         ///////////////////////////////////////////////////////////////////////
         HPX_EXPORT int run_or_start(
-            util::function_nonser<int(boost::program_options::variables_map& vm)>
-                const& f,
+            util::function_nonser<
+                int(boost::program_options::variables_map& vm)
+            > const& f,
             boost::program_options::options_description const& desc_cmdline,
-            int argc, char** argv, std::vector<std::string> const& ini_config,
+            int argc, char** argv, std::vector<std::string> && ini_config,
             startup_function_type const& startup,
             shutdown_function_type const& shutdown, hpx::runtime_mode mode,
             bool blocking)
@@ -1097,7 +1063,8 @@ namespace hpx
                 }
 
                 // handle all common command line switches
-                util::command_line_handling cfg(mode, f, ini_config, argv[0]);
+                util::command_line_handling cfg(
+                    mode, f, std::move(ini_config), argv[0]);
 
                 util::apex_wrapper_init apex(argc, argv);
 

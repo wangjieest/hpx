@@ -11,6 +11,7 @@
 #include <hpx/config.hpp>
 #include <hpx/util/move.hpp>
 #include <hpx/util/tuple.hpp>
+#include <hpx/util/invoke.hpp>
 #include <hpx/traits/is_callable.hpp>
 #include <hpx/traits/concepts.hpp>
 
@@ -26,7 +27,6 @@
 #include <algorithm>
 #include <iterator>
 
-#include <boost/static_assert.hpp>
 #include <boost/utility/enable_if.hpp>
 #include <boost/type_traits/is_base_of.hpp>
 
@@ -44,7 +44,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             OutIter dest, F && f, Proj && proj)
         {
             while (first1 != last1)
-                *dest++ = f(proj(*first1++));
+                *dest++ = f(hpx::util::invoke(proj, *first1++));
             return hpx::util::make_tuple(first1, dest);
         }
 
@@ -92,7 +92,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                         [f, proj](reference t)
                         {
                             using hpx::util::get;
-                            get<1>(t) = f(proj(get<0>(t))); //-V573
+                            get<1>(t) = f(hpx::util::invoke(proj, get<0>(t)));
                         }));
             }
         };
@@ -187,7 +187,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
         typedef typename std::iterator_traits<InIter>::iterator_category
             iterator_category;
 
-        BOOST_STATIC_ASSERT_MSG(
+        static_assert(
             (boost::is_base_of<std::input_iterator_tag, iterator_category>::value),
             "Required at least input iterator.");
 
@@ -215,7 +215,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             Proj1 && proj1, Proj2 && proj2)
         {
             while (first1 != last1)
-                *dest++ = f(proj1(*first1++), proj2(*first2++));
+                *dest++ = f(hpx::util::invoke(proj1, *first1++),
+                    hpx::util::invoke(proj2, *first2++));
             return hpx::util::make_tuple(first1, first2, dest);
         }
 
@@ -267,7 +268,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                         [f, proj1, proj2](reference t)
                         {
                             using hpx::util::get;
-                            get<2>(t) = f(proj1(get<0>(t)), proj2(get<1>(t))); //-V573
+                            get<2>(t) = f(hpx::util::invoke(proj1, get<0>(t)),
+                                hpx::util::invoke(proj2, get<1>(t)));
                         }));
             }
         };
@@ -387,10 +389,10 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
         typedef typename std::iterator_traits<InIter1>::iterator_category category1;
         typedef typename std::iterator_traits<InIter2>::iterator_category category2;
 
-        BOOST_STATIC_ASSERT_MSG(
+        static_assert(
             (boost::is_base_of<std::input_iterator_tag, category1>::value),
             "Required at least input iterator.");
-        BOOST_STATIC_ASSERT_MSG(
+        static_assert(
             (boost::is_base_of<std::input_iterator_tag, category2>::value),
             "Required at least input iterator.");
 
@@ -421,7 +423,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
             Proj1 && proj1, Proj2 && proj2)
         {
             while (first1 != last1 && first2 != last2)
-                *dest++ = f(proj1(*first1++), proj2(*first2++));
+                *dest++ = f(hpx::util::invoke(proj1, *first1++),
+                    hpx::util::invoke(proj2, *first2++));
             return hpx::util::make_tuple(first1, first2, dest);
         }
 
@@ -476,7 +479,8 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
                         [f, proj1, proj2](reference t)
                         {
                             using hpx::util::get;
-                            get<2>(t) = f(proj1(get<0>(t)), proj2(get<1>(t))); //-V573
+                            get<2>(t) = f(hpx::util::invoke(proj1, get<0>(t)),
+                                hpx::util::invoke(proj2, get<1>(t)));
                         }));
             }
         };
@@ -603,10 +607,10 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
         typedef typename std::iterator_traits<InIter1>::iterator_category category1;
         typedef typename std::iterator_traits<InIter2>::iterator_category category2;
 
-        BOOST_STATIC_ASSERT_MSG(
+        static_assert(
             (boost::is_base_of<std::input_iterator_tag, category1>::value),
             "Required at least input iterator.");
-        BOOST_STATIC_ASSERT_MSG(
+        static_assert(
             (boost::is_base_of<std::input_iterator_tag, category2>::value),
             "Required at least input iterator.");
 

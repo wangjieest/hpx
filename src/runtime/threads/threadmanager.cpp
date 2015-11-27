@@ -13,7 +13,7 @@
 #include <hpx/runtime/threads/thread_data.hpp>
 #include <hpx/runtime/threads/thread_helpers.hpp>
 #include <hpx/runtime/threads/detail/set_thread_state.hpp>
-#include <hpx/runtime/threads/executors/generic_thread_pool_executor.hpp>
+#include <hpx/runtime/threads/executors/current_executor.hpp>
 #include <hpx/include/performance_counters.hpp>
 #include <hpx/performance_counters/counter_creators.hpp>
 #include <hpx/runtime/actions/continuation.hpp>
@@ -1192,7 +1192,7 @@ template class HPX_EXPORT hpx::threads::threadmanager_impl<
     hpx::threads::policies::static_queue_scheduler<> >;
 #endif
 
-#if defined(HPX_HAVE_THROTTLE_SCHEDULER)
+#if defined(HPX_HAVE_THROTTLE_SCHEDULER) && defined(HPX_HAVE_APEX)
 #include <hpx/runtime/threads/policies/throttle_queue_scheduler.hpp>
 template class HPX_EXPORT hpx::threads::threadmanager_impl<
     hpx::threads::policies::throttle_queue_scheduler<> >;

@@ -18,7 +18,6 @@
 #include <hpx/runtime/components/base_lco_factory.hpp>
 #include <hpx/runtime/components/component_type.hpp>
 #include <hpx/runtime/serialization/serialize.hpp>
-#include <hpx/runtime/serialization/serialize_sequence.hpp>
 #include <hpx/util/tuple.hpp>
 
 #include <boost/fusion/include/at_c.hpp>
@@ -367,6 +366,9 @@ namespace hpx { namespace agas
         // TODO: verification of namespace_action_code
     }
 
+    response::~response()
+    {}
+
     response::response(
         response const& other
         )
@@ -585,7 +587,7 @@ namespace hpx { namespace agas
         void operator()(Sequence const& seq) const
         {
             // TODO: verification?
-            serialization::serialize_sequence(ar, seq);
+            ar << seq;
         }
     };
 
@@ -606,7 +608,7 @@ namespace hpx { namespace agas
             boost::mpl::at_c<                                               \
                 response_data::data_type::types, n                          \
             >::type d;                                                      \
-            serialization::serialize_sequence(ar, d);                       \
+            ar >> d;                                                        \
             data->data = d;                                                 \
             return;                                                         \
         }                                                                   \
