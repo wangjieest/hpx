@@ -231,7 +231,7 @@ endif()
 
 foreach(_plugin ${HPX_STATIC_PARCELPORT_PLUGINS})
   if (_parcelport_${_plugin}_LIBRARIES)
-    target_link_libraries(hpx ${_parcelport_${_plugin}_LIBRARIES})
+    target_link_libraries(hpx PUBLIC ${_parcelport_${_plugin}_LIBRARIES})
     hpx_export_targets(${_parcelport_${_plugin}_LIBRARIES})
   endif()
 endforeach()
