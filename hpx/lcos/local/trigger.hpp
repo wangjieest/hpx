@@ -6,15 +6,19 @@
 #if !defined(HPX_LCOS_LOCAL_TRIGGER_SEP_09_2012_1229PM)
 #define HPX_LCOS_LOCAL_TRIGGER_SEP_09_2012_1229PM
 
-#include <hpx/hpx_fwd.hpp>
+#include <hpx/config.hpp>
+#include <hpx/error_code.hpp>
+#include <hpx/throw_exception.hpp>
 #include <hpx/lcos/local/spinlock.hpp>
 #include <hpx/lcos/local/conditional_trigger.hpp>
 #include <hpx/lcos/local/no_mutex.hpp>
+#include <hpx/lcos/local/promise.hpp>
 #include <hpx/util/assert.hpp>
 #include <hpx/util/assert_owns_lock.hpp>
+#include <hpx/util/unlock_guard.hpp>
 
-#include <boost/thread/locks.hpp>
-
+#include <list>
+#include <mutex>
 #include <utility>
 
 namespace hpx { namespace lcos { namespace local
@@ -27,7 +31,7 @@ namespace hpx { namespace lcos { namespace local
         typedef Mutex mutex_type;
 
     private:
-        HPX_MOVABLE_BUT_NOT_COPYABLE(base_trigger)
+        HPX_MOVABLE_ONLY(base_trigger);
         typedef std::list<conditional_trigger*> condition_list_type;
 
     public:
@@ -48,7 +52,7 @@ namespace hpx { namespace lcos { namespace local
         {
             if (this != &rhs)
             {
-                boost::lock_guard<mutex_type> l(rhs.mtx_);
+                std::lock_guard<mutex_type> l(rhs.mtx_);
                 promise_ = std::move(rhs.promise_);
                 generation_ = rhs.generation_;
                 rhs.generation_ = std::size_t(-1);
@@ -76,7 +80,7 @@ namespace hpx { namespace lcos { namespace local
         future<void> get_future(std::size_t* generation_value = 0,
             error_code& ec = hpx::throws)
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             HPX_ASSERT(generation_ != std::size_t(-1));
             ++generation_;
@@ -93,7 +97,7 @@ namespace hpx { namespace lcos { namespace local
         /// \brief Trigger this object.
         bool set(error_code& ec = throws)
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
 
             if (&ec != &throws)
                 ec = make_success_code();
@@ -146,7 +150,7 @@ namespace hpx { namespace lcos { namespace local
             char const* function_name = "base_and_gate<>::synchronize",
             error_code& ec= throws)
         {
-            boost::unique_lock<mutex_type> l(mtx_);
+            std::unique_lock<mutex_type> l(mtx_);
             synchronize(generation_value, l, function_name, ec);
         }
 
@@ -187,7 +191,7 @@ namespace hpx { namespace lcos { namespace local
     public:
         std::size_t next_generation()
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             HPX_ASSERT(generation_ != std::size_t(-1));
             std::size_t retval = ++generation_;
 
@@ -198,7 +202,7 @@ namespace hpx { namespace lcos { namespace local
 
         std::size_t generation() const
         {
-            boost::lock_guard<mutex_type> l(mtx_);
+            std::lock_guard<mutex_type> l(mtx_);
             return generation_;
         }
 
@@ -216,7 +220,7 @@ namespace hpx { namespace lcos { namespace local
     struct trigger : public base_trigger<no_mutex>
     {
     private:
-        HPX_MOVABLE_BUT_NOT_COPYABLE(trigger)
+        HPX_MOVABLE_ONLY(trigger);
         typedef base_trigger<no_mutex> base_type;
 
     public:
