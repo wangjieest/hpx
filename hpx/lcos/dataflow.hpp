@@ -64,7 +64,7 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Future>
         HPX_FORCEINLINE
         typename std::enable_if<
-            traits::is_future_or_future_range<Future>::value
+            traits::detail::is_future_or_future_range<Future>::value
         >::type operator()(Future& future) const
         {
             future = Future();
@@ -73,7 +73,7 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Future>
         HPX_FORCEINLINE
         typename std::enable_if<
-            traits::is_future_or_future_range<Future>::value
+            traits::detail::is_future_or_future_range<Future>::value
         >::type operator()(boost::reference_wrapper<Future>& future) const
         {
             future.get() = Future();
@@ -82,7 +82,7 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Future>
         HPX_FORCEINLINE
         typename std::enable_if<
-            traits::is_future_or_future_range<Future>::value
+            traits::detail::is_future_or_future_range<Future>::value
         >::type operator()(std::reference_wrapper<Future>& future) const
         {
             future.get() = Future();
@@ -91,7 +91,7 @@ namespace hpx { namespace lcos { namespace detail
         template <typename Future>
         HPX_FORCEINLINE
         typename std::enable_if<
-            !traits::is_future_or_future_range<Future>::value
+            !traits::detail::is_future_or_future_range<Future>::value
         >::type operator()(Future& future) const
         {}
     };

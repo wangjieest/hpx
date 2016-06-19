@@ -10,6 +10,7 @@ set(tests
     bind_action
     function
     parse_slurm_nodelist
+    range
     tagged
     tuple
    )
