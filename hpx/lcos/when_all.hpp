@@ -140,6 +140,7 @@ namespace hpx
 #include <hpx/lcos/when_some.hpp>
 #include <hpx/traits/acquire_future.hpp>
 #include <hpx/traits/acquire_shared_state.hpp>
+#include <hpx/traits/detail/reserve.hpp>
 #include <hpx/traits/future_access.hpp>
 #include <hpx/traits/is_future.hpp>
 #include <hpx/traits/is_future_range.hpp>
@@ -345,27 +346,22 @@ namespace hpx { namespace lcos
     template <typename Range>
     typename std::enable_if<traits::is_future_range<Range>::value,
         lcos::future<typename std::decay<Range>::type> >::type //-V659
-    when_all(Range&& values)
+    when_all(Range&& lazy_values)
     {
+        typedef typename std::decay<Range>::type result_type;
+
+        result_type lazy_values_ = traits::acquire_future<result_type>()(lazy_values);
+
         typedef detail::when_all_frame<
-                util::tuple<Range>
+                util::tuple<result_type>
             > frame_type;
 
         boost::intrusive_ptr<frame_type> p(new frame_type(
-            util::forward_as_tuple(std::move(values))));
+            util::forward_as_tuple(std::move(lazy_values_))));
         p->do_await();
 
         using traits::future_access;
         return future_access<typename frame_type::type>::create(std::move(p));
-    }
-
-    template <typename Range>
-    typename std::enable_if<traits::is_future_range<Range>::value,
-        lcos::future<typename std::decay<Range>::type> >::type
-    when_all(Range& values)
-    {
-        Range values_ = traits::acquire_future<Range>()(values);
-        return lcos::when_all(std::move(values_));
     }
 
     template <typename Iterator, typename Container =
@@ -373,18 +369,18 @@ namespace hpx { namespace lcos
     lcos::future<Container>
     when_all(Iterator begin, Iterator end)
     {
-        Container values;
+        Container lazy_values_;
 
         typename std::iterator_traits<Iterator>::
             difference_type difference = std::distance(begin, end);
         if (difference > 0)
             traits::detail::reserve_if_vector(
-                values, static_cast<std::size_t>(difference));
+                lazy_values_, static_cast<std::size_t>(difference));
 
-        std::transform(begin, end, std::back_inserter(values),
+        std::transform(begin, end, std::back_inserter(lazy_values_),
             traits::acquire_future_disp());
 
-        return lcos::when_all(std::move(values));
+        return lcos::when_all(std::move(lazy_values_));
     }
 
     inline lcos::future<util::tuple<> > //-V524
@@ -411,19 +407,28 @@ namespace hpx { namespace lcos
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    template <typename... Ts>
-    typename detail::when_all_frame<
-        util::tuple<typename traits::acquire_future<Ts>::type...>
+    template <typename T, typename... Ts>
+    typename std::enable_if<
+        !(traits::is_future_range<T>::value && sizeof...(Ts) == 0),
+        typename detail::when_all_frame<
+            util::tuple<
+                typename traits::acquire_future<T>::type,
+                typename traits::acquire_future<Ts>::type...
+            >
+        >::type
     >::type
-    when_all(Ts&&... ts)
+    when_all(T&& t, Ts&&... ts)
     {
         typedef util::tuple<
+                typename traits::acquire_future<T>::type,
                 typename traits::acquire_future<Ts>::type...
             > result_type;
         typedef detail::when_all_frame<result_type> frame_type;
 
         traits::acquire_future_disp func;
-        result_type values(func(std::forward<Ts>(ts))...);
+        result_type values(
+            func(std::forward<T>(t)),
+            func(std::forward<Ts>(ts))...);
 
         boost::intrusive_ptr<frame_type> p(new frame_type(std::move(values)));
         p->do_await();
