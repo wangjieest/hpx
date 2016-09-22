@@ -112,7 +112,7 @@ namespace hpx { namespace parallel { HPX_INLINE_NAMESPACE(v1)
           : handle_exception_impl<parallel_task_execution_policy, Result>
         {};
 
-#if defined(HPX_HAVE_VC_DATAPAR)
+#if defined(HPX_HAVE_DATAPAR)
         ///////////////////////////////////////////////////////////////////////
         template <typename Result>
         struct handle_exception_impl<datapar_task_execution_policy, Result>
