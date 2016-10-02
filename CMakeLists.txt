@@ -426,6 +426,33 @@ hpx_option(HPX_WITH_SWAP_CONTEXT_EMULATION BOOL
   "Emulate SwapContext API for coroutines (default: OFF)"
   OFF CATEGORY "Thread Manager" ADVANCED)
 
+## Profiling related build options
+hpx_option(HPX_WITH_APEX BOOL
+  "Enable APEX instrumentation support." OFF CATEGORY "Profiling")
+if(HPX_WITH_APEX)
+  hpx_add_config_define(HPX_HAVE_APEX)
+endif()
+hpx_option(HPX_WITH_PAPI BOOL
+  "Enable the PAPI based performance counter." OFF CATEGORY "Profiling")
+if(HPX_WITH_PAPI)
+  hpx_add_config_define(HPX_HAVE_PAPI)
+endif()
+hpx_option(HPX_WITH_TAU BOOL
+  "Enable TAU profiling support." OFF CATEGORY "Profiling")
+if(HPX_WITH_TAU)
+  hpx_add_config_define(HPX_HAVE_TAU)
+endif()
+hpx_option(HPX_WITH_GOOGLE_PERFTOOLS BOOL
+  "Enable Google Perftools instrumentation support." OFF CATEGORY "Profiling")
+if(HPX_WITH_GOOGLE_PERFTOOLS)
+  hpx_add_config_define(HPX_HAVE_GOOGLE_PERFTOOLS)
+endif()
+hpx_option(HPX_WITH_ITTNOTIFY BOOL
+  "Enable Amplifier (ITT) instrumentation support." OFF CATEGORY "Profiling")
+#if(HPX_WITH_ITTNOTIFY)
+  #hpx_add_config_define(HPX_HAVE_ITTNOTIFY)
+#endif()
+
 ################################################################################
 # Scheduler configuration
 ################################################################################
@@ -482,21 +509,20 @@ if(HPX_WITH_AGAS_DUMP_REFCNT_ENTRIES)
   hpx_add_config_define(HPX_HAVE_AGAS_DUMP_REFCNT_ENTRIES)
 endif()
 
+## Parcelport related build options
+set(_parcel_profiling_default OFF)
+if(HPX_WITH_APEX)
+  set(_parcel_profiling_default ON)
+endif()
+
 hpx_option(HPX_WITH_PARCEL_PROFILING BOOL
   "Enable profiling data for parcels"
-  OFF CATEGORY "Parcelport" ADVANCED)
+  ${_parcel_profiling_default} CATEGORY "Parcelport" ADVANCED)
 
 if(HPX_WITH_PARCEL_PROFILING)
   hpx_add_config_define(HPX_HAVE_PARCEL_PROFILING)
 endif()
 
-## Parcelport related build options
-hpx_option(HPX_WITH_PARCELPORT_IBVERBS BOOL
-  "Enable the ibverbs based parcelport. This is currently an experimental feature"
-  OFF CATEGORY "Parcelport" ADVANCED)
-hpx_option(HPX_WITH_PARCELPORT_IPC BOOL
-  "Enable the IPC (inter process communication) based parcelport. This is currently an experimental feature"
-  OFF CATEGORY "Parcelport" ADVANCED)
 hpx_option(HPX_WITH_PARCELPORT_MPI BOOL
   "Enable the MPI based parcelport."
   OFF CATEGORY "Parcelport")
@@ -510,20 +536,6 @@ if(HPX_WITH_PARCELPORT_ACTION_COUNTERS)
   hpx_add_config_define(HPX_HAVE_PARCELPORT_ACTION_COUNTERS)
 endif()
 
-## ibverbs parcelport settings
-hpx_option(HPX_WITH_PARCELPORT_IBVERBS_IFNAME STRING
-  "The interface name of the ibverbs capable network adapter (default: ib0)"
-  "ib0" CATEGORY "Parcelport" ADVANCED)
-hpx_option(HPX_WITH_PARCELPORT_IBVERBS_MESSAGE_PAYLOAD STRING
-  "Size of the message payload not sent with RDMA (default: 512 byte)"
-  "512" CATEGORY "Parcelport" ADVANCED)
-hpx_option(HPX_WITH_PARCELPORT_IBVERBS_MEMORY_CHUNK_SIZE STRING
-  "Number of bytes a chunk in the memory pool can hold (default: 64MB)"
-  "67108864" CATEGORY "Parcelport" ADVANCED)
-hpx_option(HPX_WITH_PARCELPORT_IBVERBS_MAX_MEMORY_CHUNKS STRING
-  "Maximum number of chunks that can be allocated (default: 100)"
-  "100" CATEGORY "Parcelport" ADVANCED)
-
 ## mpi parcelport settings
 hpx_option(HPX_WITH_PARCELPORT_MPI_ENV STRING
   "List of environment variables checked to detect MPI (default: MV2_COMM_WORLD_RANK;PMI_RANK;OMPI_COMM_WORLD_SIZE;ALPS_APP_PE)."
@@ -531,33 +543,6 @@ hpx_option(HPX_WITH_PARCELPORT_MPI_ENV STRING
 hpx_option(HPX_WITH_PARCELPORT_MPI_MULTITHREADED BOOL
   "Turn on MPI multithreading support (default: ON)."
   ON CATEGORY "Parcelport" ADVANCED)
-
-## Profiling related build options
-hpx_option(HPX_WITH_APEX BOOL
-  "Enable APEX instrumentation support." OFF CATEGORY "Profiling")
-if(HPX_WITH_APEX)
-  hpx_add_config_define(HPX_HAVE_APEX)
-endif()
-hpx_option(HPX_WITH_PAPI BOOL
-  "Enable the PAPI based performance counter." OFF CATEGORY "Profiling")
-if(HPX_WITH_PAPI)
-  hpx_add_config_define(HPX_HAVE_PAPI)
-endif()
-hpx_option(HPX_WITH_TAU BOOL
-  "Enable TAU profiling support." OFF CATEGORY "Profiling")
-if(HPX_WITH_TAU)
-  hpx_add_config_define(HPX_HAVE_TAU)
-endif()
-hpx_option(HPX_WITH_GOOGLE_PERFTOOLS BOOL
-  "Enable Google Perftools instrumentation support." OFF CATEGORY "Profiling")
-if(HPX_WITH_GOOGLE_PERFTOOLS)
-  hpx_add_config_define(HPX_HAVE_GOOGLE_PERFTOOLS)
-endif()
-hpx_option(HPX_WITH_ITTNOTIFY BOOL
-  "Enable Amplifier (ITT) instrumentation support." OFF CATEGORY "Profiling")
-#if(HPX_WITH_ITTNOTIFY)
-  #hpx_add_config_define(HPX_HAVE_ITTNOTIFY)
-#endif()
 
 ## External libraries/frameworks used by sme of the examples and benchmarks
 hpx_option(HPX_WITH_EXAMPLES_OPENMP BOOL
@@ -621,7 +606,8 @@ if(NOT "${HPX_PLATFORM_UC}" STREQUAL "BLUEGENEQ")
 endif()
 
 ## Debugging related build options
-hpx_option(HPX_WITH_VALGRIND BOOL "Enable Valgrind instrumentation support." OFF CATEGORY "Debugging")
+hpx_option(HPX_WITH_VALGRIND BOOL "Enable Valgrind instrumentation support."
+  OFF CATEGORY "Debugging")
 
 hpx_option(HPX_WITH_VERIFY_LOCKS BOOL
   "Enable lock verification code (default: OFF, implicitly enabled in debug builds)"
