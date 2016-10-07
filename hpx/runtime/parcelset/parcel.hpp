@@ -47,8 +47,6 @@ namespace hpx { namespace parcelset
 {
     class HPX_EXPORT parcel
     {
-    private:
-        HPX_MOVABLE_ONLY(parcel);
 
     private:
 
@@ -96,10 +94,8 @@ namespace hpx { namespace parcelset
     public:
         struct data
         {
-        private:
             HPX_MOVABLE_ONLY(data);
 
-        public:
             data() :
 #if defined(HPX_HAVE_PARCEL_PROFILING)
                 start_time_(0),
@@ -202,7 +198,9 @@ namespace hpx { namespace parcelset
 //             HPX_ASSERT(is_valid());
         }
         friend struct detail::create_parcel;
+
     public:
+        HPX_MOVABLE_ONLY(parcel);
 
         parcel(parcel && other)
           : data_(std::move(other.data_)),
