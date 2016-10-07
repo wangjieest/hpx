@@ -31,18 +31,35 @@ namespace hpx { namespace parcelset
 
             call_for_each(handlers_type&& handlers, parcels_type && parcels)
               : handlers_(std::move(handlers))
-              , parcels_(std::move(parcels))
-            {}
+              //, parcels_(std::move(parcels))
+            {
+                parcels_.reserve(parcels.size());
+                for(parcel& p: parcels)
+                {
+                    parcels_.push_back(std::move(p));
+                }
+            }
 
             call_for_each(call_for_each &&other)
               : handlers_(std::move(other.handlers_))
-              , parcels_(std::move(other.parcels_))
-            {}
+//               , parcels_(std::move(other.parcels_))
+            {
+                parcels_.reserve(other.parcels_.size());
+                for(parcel& p: other.parcels_)
+                {
+                    parcels_.push_back(std::move(p));
+                }
+            }
 
             call_for_each& operator=(call_for_each &&other)
             {
                 handlers_ = std::move(other.handlers_);
-                parcels_ = std::move(other.parcels_);
+//                 parcels_ = std::move(other.parcels_);
+                parcels_.reserve(other.parcels_.size());
+                for(parcel& p: other.parcels_)
+                {
+                    parcels_.push_back(std::move(p));
+                }
 
                 return *this;
             }
